@@ -1,3 +1,9 @@
+/* 白フラッシュ防止: Tailwindより先に読み込まれる */
+html, body {
+  background-color: #020617 !important;
+  color: #f8fafc;
+}
+
 @import "tailwindcss";
 
 /* カスタムスクロールバー */

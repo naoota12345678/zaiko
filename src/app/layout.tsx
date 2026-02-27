@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { AuthProvider } from "@/lib/AuthContext";
 import "./globals.css";
 
@@ -15,9 +16,9 @@ export default function RootLayout({
   return (
     <html lang="ja" style={{ backgroundColor: "#020617" }}>
       <head>
-        <style dangerouslySetInnerHTML={{ __html: `html,body{background-color:#020617!important;color:#fff}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `document.documentElement.style.backgroundColor='#020617';document.body&&(document.body.style.backgroundColor='#020617')` }} />
       </head>
-      <body className="bg-slate-950 text-white antialiased" style={{ backgroundColor: "#020617", color: "#fff" }}>
+      <body className="bg-slate-950 text-white antialiased" style={{ backgroundColor: "#020617", color: "#f8fafc" }}>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
