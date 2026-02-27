@@ -170,6 +170,22 @@ export async function searchCustomers(
 // 入金関連
 // ============================================================
 
+export async function getPaymentsByRental(rentalId: string) {
+  const ref = collection(db, "payments");
+  const q = query(ref, where("rentalId", "==", rentalId));
+  const snapshot = await getDocs(q);
+  const results = snapshot.docs.map((d) => ({
+    id: d.id,
+    ...d.data(),
+  }));
+  // JS側でtransactionDate降順ソート
+  return results.sort((a: DocumentData, b: DocumentData) => {
+    const aTime = a.transactionDate?.toMillis?.() ?? 0;
+    const bTime = b.transactionDate?.toMillis?.() ?? 0;
+    return bTime - aTime;
+  });
+}
+
 export async function getPaymentsForPeriod(
   storeId: string,
   type: "charge" | "payment",

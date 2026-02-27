@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { updateDocument } from "@/lib/firestore";
+import { updateDocument, addDocument, getPaymentsByRental } from "@/lib/firestore";
 import { doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -11,9 +11,14 @@ import {
   RentalStatus,
   RentalExtension,
   ExtensionType,
+  Payment,
+  PaymentType,
+  PaymentCategory,
+  PaymentMethod,
   RENTAL_STATUS_LABELS,
   VEHICLE_CLASS_LABELS,
   PAYMENT_METHOD_LABELS,
+  PAYMENT_TYPE_LABELS,
   LOCATION_TYPE_LABELS,
   EXTENSION_TYPE_LABELS,
 } from "@/types";
@@ -44,6 +49,14 @@ const STATUS_BADGE: Record<RentalStatus, string> = {
   early_returned: "badge-green",
 };
 
+const PAYMENT_CATEGORY_LABELS: Record<string, string> = {
+  deposit: "前受金",
+  rental_payment: "レンタル代",
+  cancel_fee_payment: "キャンセル料",
+  early_return: "早期返却返金",
+  overcharge: "過剰請求返金",
+};
+
 function getDisplayStatus(rental: Rental): { status: RentalStatus; label: string } {
   if (rental.status === "active" || rental.status === "extended") {
     const endDate = rental.endDate instanceof Timestamp
@@ -61,8 +74,21 @@ export default function RentalDetailView({ rental }: Props) {
   const { userData } = useAuth();
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showExtendModal, setShowExtendModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // 入金履歴
+  const [payments, setPayments] = useState<(Payment & { id: string })[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(true);
+
+  // 入金フォーム
+  const [payType, setPayType] = useState<"payment" | "refund">("payment");
+  const [payCategory, setPayCategory] = useState<PaymentCategory>("rental_payment");
+  const [payAmount, setPayAmount] = useState(0);
+  const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
+  const [payBrand, setPayBrand] = useState("");
+  const [payMemo, setPayMemo] = useState("");
 
   // 返却フォーム
   const [returnDate, setReturnDate] = useState(() => {
@@ -96,6 +122,141 @@ export default function RentalDetailView({ rental }: Props) {
 
   const display = getDisplayStatus(rental);
   const isActive = ["active", "extended", "overdue", "unreturned"].includes(rental.status);
+
+  // 入金履歴読み込み
+  const loadPayments = useCallback(async () => {
+    setLoadingPayments(true);
+    try {
+      const data = await getPaymentsByRental(rental.id);
+      setPayments(data as (Payment & { id: string })[]);
+    } catch (err) {
+      console.error("入金履歴の取得に失敗:", err);
+    } finally {
+      setLoadingPayments(false);
+    }
+  }, [rental.id]);
+
+  useEffect(() => {
+    loadPayments();
+  }, [loadPayments]);
+
+  // カテゴリ選択肢
+  const categoryOptions: { value: PaymentCategory; label: string }[] =
+    payType === "payment"
+      ? [
+          { value: "deposit", label: "前受金" },
+          { value: "rental_payment", label: "レンタル代" },
+          { value: "cancel_fee_payment", label: "キャンセル料" },
+        ]
+      : [
+          { value: "early_return", label: "早期返却返金" },
+          { value: "overcharge", label: "過剰請求返金" },
+        ];
+
+  // 種別変更時にカテゴリをリセット
+  const handlePayTypeChange = (type: "payment" | "refund") => {
+    setPayType(type);
+    setPayCategory(type === "payment" ? "rental_payment" : "early_return");
+  };
+
+  // 入金登録
+  const handlePaymentSubmit = async () => {
+    if (payAmount <= 0) {
+      setMessage({ type: "error", text: "金額を入力してください。" });
+      return;
+    }
+    setSaving(true);
+    setMessage(null);
+    try {
+      await addDocument("payments", {
+        storeId: rental.storeId,
+        rentalId: rental.id,
+        reservationId: rental.reservationId ?? null,
+        customerId: rental.customerId,
+        type: payType as PaymentType,
+        category: payCategory,
+        amount: payAmount,
+        method: payMethod,
+        description: payMemo,
+        brandName: payBrand,
+        bankTransferDate: null,
+        isCancelled: false,
+        cancelledAt: null,
+        cancelReason: "",
+        staffId: userData?.id ?? "",
+        staffName: userData?.name ?? "",
+        transactionDate: Timestamp.now(),
+      });
+
+      // rental の totalPaid/balance を再計算
+      const updatedPayments = await getPaymentsByRental(rental.id) as (Payment & { id: string })[];
+      const totalPaid = updatedPayments
+        .filter((p) => !p.isCancelled && p.type === "payment")
+        .reduce((sum, p) => sum + p.amount, 0);
+      const totalRefund = updatedPayments
+        .filter((p) => !p.isCancelled && p.type === "refund")
+        .reduce((sum, p) => sum + p.amount, 0);
+      const netPaid = totalPaid - totalRefund;
+      const balance = (rental.totalPrice ?? 0) - netPaid;
+
+      await updateDocument("rentals", rental.id, {
+        totalPaid: netPaid,
+        balance,
+      });
+
+      setPayments(updatedPayments);
+      setMessage({ type: "success", text: "入金を登録しました。" });
+      setShowPaymentModal(false);
+      setPayAmount(0);
+      setPayBrand("");
+      setPayMemo("");
+      setTimeout(() => router.refresh(), 500);
+    } catch (err) {
+      console.error("入金登録に失敗:", err);
+      setMessage({ type: "error", text: "入金登録に失敗しました。" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 入金取消
+  const handleCancelPayment = async (paymentId: string) => {
+    if (!confirm("この入金を取り消しますか？")) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      await updateDocument("payments", paymentId, {
+        isCancelled: true,
+        cancelledAt: Timestamp.now(),
+        cancelReason: "取消処理",
+      });
+
+      // rental の totalPaid/balance を再計算
+      const updatedPayments = await getPaymentsByRental(rental.id) as (Payment & { id: string })[];
+      const totalPaid = updatedPayments
+        .filter((p) => !p.isCancelled && p.type === "payment")
+        .reduce((sum, p) => sum + p.amount, 0);
+      const totalRefund = updatedPayments
+        .filter((p) => !p.isCancelled && p.type === "refund")
+        .reduce((sum, p) => sum + p.amount, 0);
+      const netPaid = totalPaid - totalRefund;
+      const balance = (rental.totalPrice ?? 0) - netPaid;
+
+      await updateDocument("rentals", rental.id, {
+        totalPaid: netPaid,
+        balance,
+      });
+
+      setPayments(updatedPayments);
+      setMessage({ type: "success", text: "入金を取り消しました。" });
+      setTimeout(() => router.refresh(), 500);
+    } catch (err) {
+      console.error("入金取消に失敗:", err);
+      setMessage({ type: "error", text: "入金取消に失敗しました。" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // 返却処理
   const handleReturn = async () => {
@@ -188,6 +349,9 @@ export default function RentalDetailView({ rental }: Props) {
         </div>
         <div className="flex gap-3">
           <button onClick={() => router.back()} className="btn btn-secondary">戻る</button>
+          <button onClick={() => setShowPaymentModal(true)} className="btn btn-secondary">
+            入金登録
+          </button>
           {isActive && (
             <>
               <button onClick={() => setShowExtendModal(true)} className="btn btn-secondary">
@@ -357,6 +521,84 @@ export default function RentalDetailView({ rental }: Props) {
           </div>
         </section>
 
+        {/* 入金履歴 */}
+        <section className="card">
+          <div className="card-header">
+            <h2 className="text-lg font-semibold text-white">入金履歴</h2>
+            <button onClick={() => setShowPaymentModal(true)} className="btn btn-primary text-sm py-1 px-3">
+              入金登録
+            </button>
+          </div>
+          <div className="card-body">
+            {loadingPayments ? (
+              <p className="text-slate-500 text-sm">読み込み中...</p>
+            ) : payments.length === 0 ? (
+              <p className="text-slate-500 text-sm">入金履歴はありません</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>日付</th>
+                      <th>種別</th>
+                      <th>カテゴリ</th>
+                      <th className="text-right">金額</th>
+                      <th>支払方法</th>
+                      <th>担当</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.map((p) => (
+                      <tr key={p.id} className={p.isCancelled ? "opacity-40" : ""}>
+                        <td className={`text-sm ${p.isCancelled ? "line-through" : "text-white"}`}>
+                          {formatDateOnly(p.transactionDate)}
+                        </td>
+                        <td>
+                          <span className={`badge ${
+                            p.type === "payment" ? "badge-green" :
+                            p.type === "refund" ? "badge-amber" : "badge-slate"
+                          }`}>
+                            {PAYMENT_TYPE_LABELS[p.type] ?? p.type}
+                          </span>
+                        </td>
+                        <td className={`text-sm ${p.isCancelled ? "line-through text-slate-500" : "text-slate-300"}`}>
+                          {PAYMENT_CATEGORY_LABELS[p.category] ?? p.category}
+                        </td>
+                        <td className={`text-right text-sm font-medium ${
+                          p.isCancelled ? "line-through text-slate-500" :
+                          p.type === "refund" ? "text-red-400" : "text-white"
+                        }`}>
+                          {p.type === "refund" ? "-" : ""}{p.amount.toLocaleString()}円
+                        </td>
+                        <td className={`text-sm ${p.isCancelled ? "text-slate-500" : "text-slate-300"}`}>
+                          {PAYMENT_METHOD_LABELS[p.method] ?? p.method}
+                          {p.brandName ? ` (${p.brandName})` : ""}
+                        </td>
+                        <td className="text-sm text-slate-400">{p.staffName}</td>
+                        <td>
+                          {!p.isCancelled && (
+                            <button
+                              onClick={() => handleCancelPayment(p.id)}
+                              disabled={saving}
+                              className="text-xs text-red-400 hover:text-red-300"
+                            >
+                              取消
+                            </button>
+                          )}
+                          {p.isCancelled && (
+                            <span className="text-xs text-slate-500">取消済</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* 延長履歴 */}
         {rental.extensions && rental.extensions.length > 0 && (
           <section className="card">
@@ -404,6 +646,73 @@ export default function RentalDetailView({ rental }: Props) {
           </section>
         )}
       </div>
+
+      {/* 入金登録モーダル */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={() => setShowPaymentModal(false)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md shadow-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white mb-4">入金登録</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="form-label">種別</label>
+                <select value={payType}
+                  onChange={(e) => handlePayTypeChange(e.target.value as "payment" | "refund")}
+                  className="form-select">
+                  <option value="payment">入金</option>
+                  <option value="refund">返金</option>
+                </select>
+              </div>
+              <div>
+                <label className="form-label">カテゴリ</label>
+                <select value={payCategory}
+                  onChange={(e) => setPayCategory(e.target.value as PaymentCategory)}
+                  className="form-select">
+                  {categoryOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">金額 (円)</label>
+                <input type="number" value={payAmount}
+                  onChange={(e) => setPayAmount(Number(e.target.value))}
+                  className="form-input" min={0} />
+              </div>
+              <div>
+                <label className="form-label">支払方法</label>
+                <select value={payMethod}
+                  onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}
+                  className="form-select">
+                  {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">ブランド名 (任意)</label>
+                <input type="text" value={payBrand}
+                  onChange={(e) => setPayBrand(e.target.value)}
+                  className="form-input" placeholder="Visa, Suica 等" />
+              </div>
+              <div>
+                <label className="form-label">備考</label>
+                <input type="text" value={payMemo}
+                  onChange={(e) => setPayMemo(e.target.value)}
+                  className="form-input" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowPaymentModal(false)} className="btn btn-secondary">
+                キャンセル
+              </button>
+              <button onClick={handlePaymentSubmit} disabled={saving} className="btn btn-primary">
+                {saving ? "処理中..." : "登録"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 返却処理モーダル */}
       {showReturnModal && (
