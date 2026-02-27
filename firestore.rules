@@ -1,0 +1,188 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // ヘルパー関数
+    // ============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getUserStoreId() {
+      return getUserData().storeId;
+    }
+
+    function getUserRole() {
+      return getUserData().role;
+    }
+
+    function belongsToStore(storeId) {
+      return getUserStoreId() == storeId;
+    }
+
+    function isManagerOrAbove() {
+      return getUserRole() in ["owner", "manager"];
+    }
+
+    function isOwner() {
+      return getUserRole() == "owner";
+    }
+
+    // ============================================================
+    // stores（店舗）
+    // ============================================================
+    match /stores/{storeId} {
+      allow read: if isAuthenticated() && belongsToStore(storeId);
+      allow write: if isAuthenticated() && belongsToStore(storeId) && isManagerOrAbove();
+    }
+
+    // ============================================================
+    // users（スタッフ・アカウント）
+    // ============================================================
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        (resource.data.storeId == getUserStoreId())
+      );
+      allow create: if isAuthenticated() && isManagerOrAbove()
+        && request.resource.data.storeId == getUserStoreId();
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == userId && request.resource.data.role == resource.data.role)
+        ||
+        (isManagerOrAbove() && resource.data.storeId == getUserStoreId())
+      );
+      allow delete: if isAuthenticated() && isOwner()
+        && resource.data.storeId == getUserStoreId();
+    }
+
+    // ============================================================
+    // vehicles（車両）
+    // ============================================================
+    match /vehicles/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow create: if isAuthenticated() && request.resource.data.storeId == getUserStoreId();
+      allow update: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow delete: if isAuthenticated() && isManagerOrAbove()
+        && resource.data.storeId == getUserStoreId();
+    }
+
+    // ============================================================
+    // reservations（予約）- 削除不可
+    // ============================================================
+    match /reservations/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow create: if isAuthenticated() && request.resource.data.storeId == getUserStoreId();
+      allow update: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // rentals（貸出）- 削除不可
+    // ============================================================
+    match /rentals/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow create: if isAuthenticated() && request.resource.data.storeId == getUserStoreId();
+      allow update: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // customers（顧客）- 削除不可
+    // ============================================================
+    match /customers/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow create: if isAuthenticated() && request.resource.data.storeId == getUserStoreId();
+      allow update: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // payments（請求・入金）- 削除不可
+    // ============================================================
+    match /payments/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow create: if isAuthenticated() && request.resource.data.storeId == getUserStoreId();
+      allow update: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // maintenanceShops（整備工場）- manager以上のみ書き込み
+    // ============================================================
+    match /maintenanceShops/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow write: if isAuthenticated() && isManagerOrAbove()
+        && request.resource.data.storeId == getUserStoreId();
+    }
+
+    // ============================================================
+    // maintenanceRecords（整備記録）- 削除不可
+    // ============================================================
+    match /maintenanceRecords/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow create: if isAuthenticated() && request.resource.data.storeId == getUserStoreId();
+      allow update: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // closedDays（休業日）
+    // ============================================================
+    match /closedDays/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isManagerOrAbove();
+    }
+
+    // ============================================================
+    // netReservationSettings（ネット予約設定）
+    // ネット予約ページから参照するため読み取りは公開
+    // ============================================================
+    match /netReservationSettings/{storeId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && belongsToStore(storeId) && isManagerOrAbove();
+    }
+
+    // ============================================================
+    // parkingViolations（違法駐車）
+    // ============================================================
+    match /parkingViolations/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow create: if isAuthenticated() && request.resource.data.storeId == getUserStoreId();
+      allow update: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow delete: if false;
+    }
+
+    // ============================================================
+    // ★新規: pricingPlans（料金プラン）- manager以上のみ書き込み
+    // ============================================================
+    match /pricingPlans/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow write: if isAuthenticated() && isManagerOrAbove()
+        && request.resource.data.storeId == getUserStoreId();
+    }
+
+    // ============================================================
+    // ★新規: optionMaster（オプションマスタ）- manager以上のみ書き込み
+    // ============================================================
+    match /optionMaster/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow write: if isAuthenticated() && isManagerOrAbove()
+        && request.resource.data.storeId == getUserStoreId();
+    }
+
+    // ============================================================
+    // ★新規: cancelPolicies（キャンセルポリシー）- manager以上のみ書き込み
+    // ============================================================
+    match /cancelPolicies/{docId} {
+      allow read: if isAuthenticated() && resource.data.storeId == getUserStoreId();
+      allow write: if isAuthenticated() && isManagerOrAbove()
+        && request.resource.data.storeId == getUserStoreId();
+    }
+  }
+}

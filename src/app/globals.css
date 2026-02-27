@@ -1,26 +1,89 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* カスタムスクロールバー */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* フォーカスリング */
+*:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* テーブル */
+@layer components {
+  .data-table {
+    @apply w-full text-sm text-left;
   }
-}
+  .data-table thead {
+    @apply bg-slate-800 text-slate-400 text-xs uppercase tracking-wider;
+  }
+  .data-table th {
+    @apply px-4 py-3 font-semibold;
+  }
+  .data-table td {
+    @apply px-4 py-3 border-t border-slate-800;
+  }
+  .data-table tbody tr:hover {
+    @apply bg-slate-800/50;
+  }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* バッジ */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-blue { @apply bg-blue-900/50 text-blue-300 border border-blue-700; }
+  .badge-green { @apply bg-green-900/50 text-green-300 border border-green-700; }
+  .badge-amber { @apply bg-amber-900/50 text-amber-300 border border-amber-700; }
+  .badge-red { @apply bg-red-900/50 text-red-300 border border-red-700; }
+  .badge-gray { @apply bg-slate-800 text-slate-400 border border-slate-700; }
+
+  /* フォーム */
+  .form-input {
+    @apply w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white
+           placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500
+           focus:border-transparent text-sm transition;
+  }
+  .form-label {
+    @apply block text-sm font-medium text-slate-300 mb-1.5;
+  }
+  .form-select {
+    @apply w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white
+           focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm cursor-pointer;
+  }
+
+  /* ボタン */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+           text-sm font-semibold transition-colors duration-150 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary { @apply bg-blue-600 text-white hover:bg-blue-500; }
+  .btn-success { @apply bg-green-600 text-white hover:bg-green-500; }
+  .btn-danger { @apply bg-red-600 text-white hover:bg-red-500; }
+  .btn-secondary { @apply bg-slate-700 text-slate-200 hover:bg-slate-600; }
+  .btn-ghost { @apply bg-transparent text-slate-400 hover:text-white hover:bg-slate-800; }
+
+  /* カード */
+  .card {
+    @apply bg-slate-900 border border-slate-800 rounded-xl;
+  }
+  .card-header {
+    @apply px-6 py-4 border-b border-slate-800 flex items-center justify-between;
+  }
+  .card-body {
+    @apply p-6;
+  }
 }
