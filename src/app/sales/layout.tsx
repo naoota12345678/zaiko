@@ -1,6 +1,6 @@
 import AuthenticatedLayout from "@/components/layout/AuthenticatedLayout";
 
-export default function SectionLayout({
+export default function SalesLayout({
   children,
 }: {
   children: React.ReactNode;

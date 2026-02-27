@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { updateDocument, addDocument, getPaymentsByRental } from "@/lib/firestore";
-import { doc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { printRentalCertificate } from "@/lib/printCertificate";
+import { doc, updateDoc, getDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   Rental,
@@ -71,7 +72,7 @@ function getDisplayStatus(rental: Rental): { status: RentalStatus; label: string
 
 export default function RentalDetailView({ rental }: Props) {
   const router = useRouter();
-  const { userData } = useAuth();
+  const { userData, storeId } = useAuth();
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -337,6 +338,28 @@ export default function RentalDetailView({ rental }: Props) {
     }
   };
 
+  // 貸渡証印刷
+  const handlePrintCertificate = async () => {
+    try {
+      if (!storeId) return;
+      const storeSnap = await getDoc(doc(db, "stores", storeId));
+      const storeData = storeSnap.exists() ? storeSnap.data() : {};
+      printRentalCertificate(rental, {
+        name: storeData.name ?? "",
+        phone: storeData.phone ?? "",
+        address: storeData.address ?? "",
+        postalCode: storeData.postalCode ?? "",
+        prefecture: storeData.prefecture ?? "",
+        city: storeData.city ?? "",
+        contractInfo: storeData.contractInfo,
+        transportBureau: storeData.transportBureau,
+      });
+    } catch (err) {
+      console.error("貸渡証の生成に失敗:", err);
+      setMessage({ type: "error", text: "貸渡証の生成に失敗しました。" });
+    }
+  };
+
   return (
     <div className="p-6 max-w-4xl">
       {/* ヘッダー */}
@@ -349,6 +372,9 @@ export default function RentalDetailView({ rental }: Props) {
         </div>
         <div className="flex gap-3">
           <button onClick={() => router.back()} className="btn btn-secondary">戻る</button>
+          <button onClick={handlePrintCertificate} className="btn btn-secondary">
+            貸渡証
+          </button>
           <button onClick={() => setShowPaymentModal(true)} className="btn btn-secondary">
             入金登録
           </button>

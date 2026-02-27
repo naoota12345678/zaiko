@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Store, CreditCardBrand } from "@/types";
+import { Store, CreditCardBrand, HighSeasonPeriod } from "@/types";
 
 const CREDIT_CARD_BRANDS: { value: CreditCardBrand; label: string }[] = [
   { value: "visa", label: "VISA" },
@@ -70,6 +70,42 @@ export default function StoreSettingsTab() {
     const cards = prev.acceptedCards.includes(brand) ? prev.acceptedCards.filter((c) => c !== brand) : [...prev.acceptedCards, brand];
     return { ...prev, acceptedCards: cards };
   });
+
+  // ハイシーズン期間管理
+  const addHighSeason = () => {
+    setForm((prev) => ({
+      ...prev,
+      highSeasonPeriods: [
+        ...prev.highSeasonPeriods,
+        { startDate: Timestamp.fromDate(new Date()), endDate: Timestamp.fromDate(new Date()), label: "" },
+      ],
+    }));
+  };
+
+  const removeHighSeason = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      highSeasonPeriods: prev.highSeasonPeriods.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateHighSeason = (index: number, field: keyof HighSeasonPeriod, value: string) => {
+    setForm((prev) => {
+      const updated = [...prev.highSeasonPeriods];
+      if (field === "label") {
+        updated[index] = { ...updated[index], label: value };
+      } else {
+        updated[index] = { ...updated[index], [field]: Timestamp.fromDate(new Date(value)) };
+      }
+      return { ...prev, highSeasonPeriods: updated };
+    });
+  };
+
+  const formatDateForInput = (ts: Timestamp | null | undefined): string => {
+    if (!ts) return "";
+    const d = ts instanceof Timestamp ? ts.toDate() : new Date(ts as unknown as string);
+    return d.toISOString().slice(0, 10);
+  };
 
   const handleSave = async () => {
     if (!storeId) return;
@@ -153,6 +189,36 @@ export default function StoreSettingsTab() {
             <div><label className="form-label">代表者名</label><input type="text" value={form.contractInfo.representative} onChange={(e) => updateContractInfo("representative", e.target.value)} className="form-input" placeholder="山田太郎" /></div>
             <div><label className="form-label">登録番号</label><input type="text" value={form.contractInfo.registrationNumber} onChange={(e) => updateContractInfo("registrationNumber", e.target.value)} className="form-input" placeholder="T1234567890123" /></div>
           </div></div>
+        </section>
+
+        <section className="card">
+          <div className="card-header">
+            <h2 className="text-lg font-semibold text-white">ハイシーズン期間</h2>
+            <button type="button" onClick={addHighSeason} className="btn btn-secondary text-sm py-1 px-3">+ 追加</button>
+          </div>
+          <div className="card-body space-y-3">
+            {form.highSeasonPeriods.length === 0 ? (
+              <p className="text-slate-500 text-sm">ハイシーズン期間が設定されていません。料金プランでハイシーズン料金を適用するには、期間を追加してください。</p>
+            ) : (
+              form.highSeasonPeriods.map((period, i) => (
+                <div key={i} className="flex items-end gap-3 p-3 bg-slate-800/50 rounded-lg">
+                  <div className="flex-1">
+                    <label className="form-label">名称</label>
+                    <input type="text" value={period.label} onChange={(e) => updateHighSeason(i, "label", e.target.value)} className="form-input" placeholder="GW / お盆 / 年末年始" />
+                  </div>
+                  <div>
+                    <label className="form-label">開始日</label>
+                    <input type="date" value={formatDateForInput(period.startDate)} onChange={(e) => updateHighSeason(i, "startDate", e.target.value)} className="form-input" />
+                  </div>
+                  <div>
+                    <label className="form-label">終了日</label>
+                    <input type="date" value={formatDateForInput(period.endDate)} onChange={(e) => updateHighSeason(i, "endDate", e.target.value)} className="form-input" />
+                  </div>
+                  <button type="button" onClick={() => removeHighSeason(i)} className="text-red-400 hover:text-red-300 text-sm pb-2">削除</button>
+                </div>
+              ))
+            )}
+          </div>
         </section>
 
         <section className="card"><div className="card-header"><h2 className="text-lg font-semibold text-white">その他</h2></div>
