@@ -5,12 +5,18 @@ import StoreSettingsTab from "@/components/settings/StoreSettingsTab";
 import PricingPlansTab from "@/components/settings/PricingPlansTab";
 import OptionMasterTab from "@/components/settings/OptionMasterTab";
 import CancelPolicyTab from "@/components/settings/CancelPolicyTab";
+import MaintenanceShopTab from "@/components/settings/MaintenanceShopTab";
+import ClosedDaysTab from "@/components/settings/ClosedDaysTab";
+import NetReservationTab from "@/components/settings/NetReservationTab";
 
 const TABS = [
   { key: "store", label: "店舗情報" },
   { key: "pricing", label: "料金プラン" },
   { key: "options", label: "オプション" },
   { key: "cancel", label: "キャンセルポリシー" },
+  { key: "shops", label: "整備工場" },
+  { key: "closed", label: "休業日" },
+  { key: "net", label: "ネット予約" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -46,6 +52,9 @@ export default function SettingsPage() {
       {activeTab === "pricing" && <PricingPlansTab />}
       {activeTab === "options" && <OptionMasterTab />}
       {activeTab === "cancel" && <CancelPolicyTab />}
+      {activeTab === "shops" && <MaintenanceShopTab />}
+      {activeTab === "closed" && <ClosedDaysTab />}
+      {activeTab === "net" && <NetReservationTab />}
     </div>
   );
 }

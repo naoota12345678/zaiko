@@ -19,6 +19,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/rentals", label: "貸出管理", icon: "📝" },
   { href: "/vehicles", label: "車両管理", icon: "🚗" },
   { href: "/customers", label: "顧客管理", icon: "👥" },
+  { href: "/maintenance", label: "整備管理", icon: "🔧" },
+  { href: "/violations", label: "違法駐車", icon: "🅿️" },
   { href: "/sales", label: "売上管理", icon: "💰", adminOnly: true },
   { href: "/settings", label: "店舗設定", icon: "⚙️" },
 ];
