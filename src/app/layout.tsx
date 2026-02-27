@@ -14,6 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja" style={{ backgroundColor: "#020617" }}>
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: `html,body{background-color:#020617!important;color:#fff}` }} />
+      </head>
       <body className="bg-slate-950 text-white antialiased" style={{ backgroundColor: "#020617", color: "#fff" }}>
         <AuthProvider>{children}</AuthProvider>
       </body>
