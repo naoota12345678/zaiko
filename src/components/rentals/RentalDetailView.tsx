@@ -88,6 +88,7 @@ export default function RentalDetailView({ rental }: Props) {
   const [payCategory, setPayCategory] = useState<PaymentCategory>("rental_payment");
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
+  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [payBrand, setPayBrand] = useState("");
   const [payMemo, setPayMemo] = useState("");
 
@@ -187,7 +188,7 @@ export default function RentalDetailView({ rental }: Props) {
         cancelReason: "",
         staffId: userData?.id ?? "",
         staffName: userData?.name ?? "",
-        transactionDate: Timestamp.now(),
+        transactionDate: Timestamp.fromDate(new Date(payDate)),
       });
 
       // rental の totalPaid/balance を再計算
@@ -210,6 +211,7 @@ export default function RentalDetailView({ rental }: Props) {
       setMessage({ type: "success", text: "入金を登録しました。" });
       setShowPaymentModal(false);
       setPayAmount("");
+      setPayDate(new Date().toISOString().slice(0, 10));
       setPayBrand("");
       setPayMemo("");
       setTimeout(() => router.refresh(), 500);
@@ -689,6 +691,12 @@ export default function RentalDetailView({ rental }: Props) {
                   <option value="payment">入金</option>
                   <option value="refund">返金</option>
                 </select>
+              </div>
+              <div>
+                <label className="form-label">取引日</label>
+                <input type="date" value={payDate}
+                  onChange={(e) => setPayDate(e.target.value)}
+                  className="form-input" />
               </div>
               <div>
                 <label className="form-label">カテゴリ</label>
