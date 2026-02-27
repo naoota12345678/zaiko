@@ -86,7 +86,7 @@ export default function RentalDetailView({ rental }: Props) {
   // 入金フォーム
   const [payType, setPayType] = useState<"payment" | "refund">("payment");
   const [payCategory, setPayCategory] = useState<PaymentCategory>("rental_payment");
-  const [payAmount, setPayAmount] = useState(0);
+  const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
   const [payBrand, setPayBrand] = useState("");
   const [payMemo, setPayMemo] = useState("");
@@ -162,7 +162,8 @@ export default function RentalDetailView({ rental }: Props) {
 
   // 入金登録
   const handlePaymentSubmit = async () => {
-    if (payAmount <= 0) {
+    const amount = Number(payAmount);
+    if (!amount || amount <= 0) {
       setMessage({ type: "error", text: "金額を入力してください。" });
       return;
     }
@@ -176,7 +177,7 @@ export default function RentalDetailView({ rental }: Props) {
         customerId: rental.customerId,
         type: payType as PaymentType,
         category: payCategory,
-        amount: payAmount,
+        amount,
         method: payMethod,
         description: payMemo,
         brandName: payBrand,
@@ -208,7 +209,7 @@ export default function RentalDetailView({ rental }: Props) {
       setPayments(updatedPayments);
       setMessage({ type: "success", text: "入金を登録しました。" });
       setShowPaymentModal(false);
-      setPayAmount(0);
+      setPayAmount("");
       setPayBrand("");
       setPayMemo("");
       setTimeout(() => router.refresh(), 500);
@@ -702,8 +703,8 @@ export default function RentalDetailView({ rental }: Props) {
               <div>
                 <label className="form-label">金額 (円)</label>
                 <input type="number" value={payAmount}
-                  onChange={(e) => setPayAmount(Number(e.target.value))}
-                  className="form-input" min={0} />
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  className="form-input" min={0} placeholder="0" />
               </div>
               <div>
                 <label className="form-label">支払方法</label>
