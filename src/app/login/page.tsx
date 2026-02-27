@@ -35,7 +35,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4" style={{ backgroundColor: "#0f172a" }}>
       <div className="w-full max-w-md">
         {/* ロゴ・タイトル */}
         <div className="text-center mb-8">
