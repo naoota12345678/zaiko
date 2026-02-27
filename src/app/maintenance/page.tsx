@@ -35,8 +35,8 @@ export default function MaintenancePage() {
   const [shopId, setShopId] = useState("");
   const [category, setCategory] = useState<MaintenanceCategory>("oil_change");
   const [description, setDescription] = useState("");
-  const [cost, setCost] = useState(0);
-  const [mileage, setMileage] = useState(0);
+  const [cost, setCost] = useState("");
+  const [mileage, setMileage] = useState("");
   const [serviceDate, setServiceDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [nextServiceDate, setNextServiceDate] = useState("");
   const [memo, setMemo] = useState("");
@@ -75,7 +75,7 @@ export default function MaintenancePage() {
 
   const resetForm = () => {
     setVehicleId(""); setShopId(""); setCategory("oil_change");
-    setDescription(""); setCost(0); setMileage(0); setMemo("");
+    setDescription(""); setCost(""); setMileage(""); setMemo("");
     setServiceDate(new Date().toISOString().slice(0, 10));
     setNextServiceDate(""); setShowForm(false);
   };
@@ -95,8 +95,8 @@ export default function MaintenancePage() {
         shopName: shop?.name ?? "",
         category,
         description,
-        cost,
-        mileageAtService: mileage,
+        cost: Number(cost) || 0,
+        mileageAtService: Number(mileage) || 0,
         serviceDate: Timestamp.fromDate(new Date(serviceDate)),
         nextServiceDate: nextServiceDate ? Timestamp.fromDate(new Date(nextServiceDate)) : null,
         memo,
@@ -198,11 +198,11 @@ export default function MaintenancePage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="form-label">費用 (円)</label>
-                <input type="number" value={cost} onChange={(e) => setCost(Number(e.target.value))} className="form-input" min={0} />
+                <input type="number" value={cost} onChange={(e) => setCost(e.target.value)} className="form-input" min={0} placeholder="0" />
               </div>
               <div>
                 <label className="form-label">実施時メーター (km)</label>
-                <input type="number" value={mileage} onChange={(e) => setMileage(Number(e.target.value))} className="form-input" min={0} />
+                <input type="number" value={mileage} onChange={(e) => setMileage(e.target.value)} className="form-input" min={0} placeholder="0" />
               </div>
             </div>
             <div>

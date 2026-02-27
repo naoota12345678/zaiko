@@ -41,7 +41,7 @@ export default function ViolationsPage() {
   const [customerName, setCustomerName] = useState("");
   const [violationDate, setViolationDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [location, setLocation] = useState("");
-  const [fineAmount, setFineAmount] = useState(0);
+  const [fineAmount, setFineAmount] = useState("");
   const [memo, setMemo] = useState("");
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export default function ViolationsPage() {
 
   const resetForm = () => {
     setVehicleId(""); setCustomerName(""); setLocation("");
-    setFineAmount(0); setMemo(""); setShowForm(false);
+    setFineAmount(""); setMemo(""); setShowForm(false);
     setViolationDate(new Date().toISOString().slice(0, 10));
   };
 
@@ -96,7 +96,7 @@ export default function ViolationsPage() {
         customerName,
         violationDate: Timestamp.fromDate(new Date(violationDate)),
         location,
-        fineAmount,
+        fineAmount: Number(fineAmount) || 0,
         status: "pending",
         memo,
       });
@@ -191,7 +191,7 @@ export default function ViolationsPage() {
               </div>
               <div>
                 <label className="form-label">反則金 (円)</label>
-                <input type="number" value={fineAmount} onChange={(e) => setFineAmount(Number(e.target.value))} className="form-input" min={0} />
+                <input type="number" value={fineAmount} onChange={(e) => setFineAmount(e.target.value)} className="form-input" min={0} placeholder="0" />
               </div>
             </div>
             <div>

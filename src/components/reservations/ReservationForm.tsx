@@ -108,7 +108,7 @@ export default function ReservationForm({ reservationId, initialData }: Props) {
 
   // 貸出開始
   const [showRentalStart, setShowRentalStart] = useState(false);
-  const [departureMileage, setDepartureMileage] = useState(0);
+  const [departureMileage, setDepartureMileage] = useState("");
   const [startingRental, setStartingRental] = useState(false);
 
   const isEdit = !!reservationId;
@@ -396,7 +396,7 @@ export default function ReservationForm({ reservationId, initialData }: Props) {
         startDate: startDateTime,
         endDate: endDateTime,
         actualReturnDate: null,
-        departureMileage,
+        departureMileage: Number(departureMileage) || 0,
         returnMileage: null,
         fuelLevelAtReturn: "",
         status: "active",
@@ -881,8 +881,8 @@ export default function ReservationForm({ reservationId, initialData }: Props) {
               <div>
                 <label className="form-label">出発メーター (km)</label>
                 <input type="number" value={departureMileage}
-                  onChange={(e) => setDepartureMileage(Number(e.target.value))}
-                  className="form-input" placeholder="出発時の走行距離" />
+                  onChange={(e) => setDepartureMileage(e.target.value)}
+                  className="form-input" placeholder="0" />
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">

@@ -119,7 +119,7 @@ export default function RentalDetailView({ rental }: Props) {
       : new Date(rental.endDate as unknown as string);
     return end.toTimeString().slice(0, 5);
   });
-  const [additionalPrice, setAdditionalPrice] = useState(0);
+  const [additionalPrice, setAdditionalPrice] = useState("");
 
   const display = getDisplayStatus(rental);
   const isActive = ["active", "extended", "overdue", "unreturned"].includes(rental.status);
@@ -310,14 +310,14 @@ export default function RentalDetailView({ rental }: Props) {
         type: extensionType,
         previousEndDate: rental.endDate,
         newEndDate: Timestamp.fromDate(newEnd),
-        additionalPrice,
+        additionalPrice: Number(additionalPrice) || 0,
         registeredAt: Timestamp.now(),
         staffId: userData?.id ?? "",
         staffName: userData?.name ?? "",
       };
 
       const updatedExtensions = [...(rental.extensions ?? []), extension];
-      const newTotal = (rental.totalPrice ?? 0) + additionalPrice;
+      const newTotal = (rental.totalPrice ?? 0) + (Number(additionalPrice) || 0);
       const newBalance = newTotal - (rental.totalPaid ?? 0);
 
       await updateDocument("rentals", rental.id, {
@@ -821,8 +821,8 @@ export default function RentalDetailView({ rental }: Props) {
               <div>
                 <label className="form-label">追加料金 (円)</label>
                 <input type="number" value={additionalPrice}
-                  onChange={(e) => setAdditionalPrice(Number(e.target.value))}
-                  className="form-input" />
+                  onChange={(e) => setAdditionalPrice(e.target.value)}
+                  className="form-input" placeholder="0" />
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
